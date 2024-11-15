@@ -24,12 +24,10 @@ from io import BytesIO
 
 # .env 파일레 저장된 환경변수 불러오기(api key)
 load_dotenv()
+print(os.getenv("OPENAI_API_KEY"))
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# OpenAI API 키 설정
-# openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Initialize Upbit client
 upbit = pyupbit.Upbit(os.getenv("UPBIT_ACCESS_KEY"), os.getenv("UPBIT_SECRET_KEY"))
@@ -879,11 +877,9 @@ def ai_trading():
 
 if __name__ == "__main__":
 
-    initialize_db()
+    initialize_db()    
 
-    # 중복 실행 방지를 위한 변수
-
-    trading_in_progress = False
+    trading_in_progress = False         # 중복 실행 방지를 위한 변수
 
     def job():
         global trading_in_progress
@@ -898,17 +894,19 @@ if __name__ == "__main__":
         finally:
             trading_in_progress = False
 
-    # 매 4시간마다 실행
-    schedule.every(4).hours.do(job)
-"""
+   
+    schedule.every(4).hours.do(job)  # 매 4시간마다 실행
+
+    """
     schedule.every().day.at("17:00").do(job)
     schedule.every().day.at("18:00").do(job)
     schedule.every().day.at("17:00").do(job)
     schedule.every().day.at("18:00").do(job)
-"""
-    # test
+    """
+
     #job()
 
-while True:
-        schedule.run_pending()
-        time.sleep(1)
+    while True:
+       schedule.run_pending()
+       time.sleep(1)
+    
