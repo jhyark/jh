@@ -19,13 +19,15 @@ def cal_init_investment(df):
     init_btc_balance = df.iloc[0]['btc_balance']
     init_krw_balance = df.iloc[0]['krw_balance']
     init_btc_price = df.iloc[0]['btc_krw_price']
+    if init_btc_balance is None or init_btc_price is None:
+        raise ValueError("init_btc_balance or init_btc_price is not initialized.")
     init_total_inv = init_krw_balance + (init_btc_balance * init_btc_price)
     return init_total_inv
 
 def cal_curr_investment(df):
     curr_btc_balance = df.iloc[-1]['btc_balance']
     curr_krw_balance = df.iloc[-1]['krw_balance']
-    curr_btc_price = pyupbit.get_current_price("KRW-BTC")
+    curr_btc_price = pyupbit.get_current_price("KRW-BTC")    
     curr_total_inv = curr_krw_balance + (curr_btc_balance * curr_btc_price)                                               
     return curr_total_inv
 
