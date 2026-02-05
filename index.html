@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Monitoring Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #080c14;
+            --card-bg: rgba(22, 28, 45, 0.7);
+            --accent-blue: #38bdf8;
+            --accent-purple: #818cf8;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.1) 0, transparent 50%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        header {
+            margin-bottom: 50px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-title {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Circular Graph Styles */
+        .chart-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin-bottom: 20px;
+        }
+
+        svg.circle-chart {
+            width: 150px;
+            height: 150px;
+            transform: rotate(-90deg);
+        }
+
+        .circle-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.05);
+            stroke-width: 12;
+        }
+
+        .circle-progress {
+            fill: none;
+            stroke: var(--accent-blue);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 439.8;
+            /* 2 * PI * R (R=70) */
+            stroke-dashoffset: 439.8;
+            transition: stroke-dashoffset 1s ease-out, stroke 0.5s ease;
+        }
+
+        .chart-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .percentage {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+            margin-top: 5px;
+            box-shadow: 0 0 10px var(--success-color);
+        }
+
+        .details {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 20px;
+            padding: 25px 35px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .info-label {
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .info-value {
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .last-updated {
+            margin-top: 50px;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pulse {
+            width: 6px;
+            height: 6px;
+            background: var(--success-color);
+            border-radius: 50%;
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+
+            70% {
+                transform: scale(1.2);
+                opacity: 0.5;
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        /* Success Check Icons in Titles */
+        .check-svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--success-color);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 12, 20, 0.95);
+            backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-content {
+            background: rgba(22, 28, 45, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 32px;
+            padding: 40px;
+            max-width: 550px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+            animation: modalPop 0.7s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+        }
+
+        @keyframes modalPop {
+            0% {
+                transform: scale(0.9) translateY(30px);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-image {
+            width: 100%;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #38bdf8, #10b981);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .modal-desc {
+            color: var(--text-dim);
+            font-size: 1rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .btn-enter {
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            color: white;
+            border: none;
+            padding: 16px 45px;
+            border-radius: 99px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-enter:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4);
+        }
+
+        .hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Splash Modal -->
+    <div id="splash-modal" class="modal-overlay">
+        <div class="modal-content">
+            <img src="vibe_coding_kids.png" alt="Vibe Coding Masters" class="modal-image">
+            <h2 class="modal-title">Vibe Coding Masters</h2>
+            <p class="modal-desc">Secure Order Dashboard Access</p>
+            <button class="btn-enter" onclick="closeModal()">Enter Dashboard</button>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <header>
+            <h1>Recent Orders</h1>
+            <p style="color: var(--text-dim); font-size: 1.1rem;">Real-time Order Tracking</p>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <!-- CPU Circle -->
+            <div class="card">
+                <div class="card-title">
+                    <svg class="check-svg" viewBox="0 0 20 20">
+                        <path
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                    </svg>
+                    CPU Load
+                </div>
+                <div class="chart-container">
+                    <svg class="circle-chart" viewBox="0 0 150 150">
+                        <circle class="circle-bg" cx="75" cy="75" r="70"></circle>
+                        <circle id="cpu-circle" class="circle-progress" cx="75" cy="75" r="70"></circle>
+                    </svg>
+                    <div class="chart-value">
+                        <span class="percentage" id="cpu-val">0.00</span>
+                        <div class="status-dot"></div>
+                    </div>
+                </div>
+                <div class="details">System Load (1m)</div>
+            </div>
+
+            <!-- Memory Circle -->
+            <div class="card">
+                <div class="card-title">
+                    <svg class="check-svg" viewBox="0 0 20 20">
+                        <path
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                    </svg>
+                    Memory
+                </div>
+                <div class="chart-container">
+                    <svg class="circle-chart" viewBox="0 0 150 150">
+                        <circle class="circle-bg" cx="75" cy="75" r="70"></circle>
+                        <circle id="mem-circle" class="circle-progress" cx="75" cy="75" r="70"></circle>
+                    </svg>
+                    <div class="chart-value">
+                        <span class="percentage" id="mem-val">0%</span>
+                        <div class="status-dot"></div>
+                    </div>
+                </div>
+                <div class="details" id="mem-details">0MB / 0MB</div>
+            </div>
+
+            <!-- Disk Circle -->
+            <div class="card">
+                <div class="card-title">
+                    <svg class="check-svg" viewBox="0 0 20 20">
+                        <path
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                    </svg>
+                    Disk SSD
+                </div>
+                <div class="chart-container">
+                    <svg class="circle-chart" viewBox="0 0 150 150">
+                        <circle class="circle-bg" cx="75" cy="75" r="70"></circle>
+                        <circle id="disk-circle" class="circle-progress" cx="75" cy="75" r="70"></circle>
+                    </svg>
+                    <div class="chart-value">
+                        <span class="percentage" id="disk-val">0%</span>
+                        <div class="status-dot"></div>
+                    </div>
+                </div>
+                <div class="details" id="disk-details">0GB / 0GB</div>
+            </div>
+        </div>
+
+        <div class="info-panel" style="margin-bottom: 40px;">
+            <div class="info-item">
+                <span class="info-label">Current Uptime</span>
+                <span class="info-value" id="uptime-val">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Operating System</span>
+                <span class="info-value" id="os-val">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Server Type</span>
+                <span class="info-value" id="php-val">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Status</span>
+                <span class="info-value" style="color: var(--success-color);">Online</span>
+            </div>
+        </div>
+
+        <!-- Orders Table Card -->
+        <div class="card" style="width: 100%; max-width: 800px; margin: 0 auto; padding: 0;">
+            <div class="table-container" style="width: 100%; overflow-x: auto; padding: 20px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <th
+                                style="padding: 15px; color: var(--accent-blue); font-weight: 600; text-transform: uppercase; font-size: 0.85rem;">
+                                Order ID</th>
+                            <th
+                                style="padding: 15px; color: var(--accent-purple); font-weight: 600; text-transform: uppercase; font-size: 0.85rem;">
+                                Customer Name</th>
+                            <th
+                                style="padding: 15px; color: var(--success-color); font-weight: 600; text-transform: uppercase; font-size: 0.85rem;">
+                                Order Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="order-list">
+                        <!-- Items will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="loading-spinner" style="padding: 20px; color: var(--text-dim); text-align: center;">
+                Loading data...
+            </div>
+        </div>
+
+        <div class="last-updated">
+            <div class="pulse"></div>
+            Data synchronized at: <span id="update-time" style="color: var(--text-main); font-weight: 500;">--</span>
+        </div>
+    </div>
+
+    <script>
+        // Use the Cloudflare Worker URL
+        const API_URL = 'https://product1.jhyark.workers.dev/';
+
+        function formatDate(dateStringOrNumber) {
+            if (!dateStringOrNumber) return '-';
+            const date = new Date(dateStringOrNumber);
+            return date.toLocaleDateString();
+        }
+
+        function updateDashboard(orders) {
+            const list = document.getElementById('order-list');
+            list.innerHTML = ''; // Clear existing
+
+            if (!orders || orders.length === 0) {
+                list.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center; color: var(--text-dim);">No recent orders found.</td></tr>';
+                document.getElementById('loading-spinner').style.display = 'none';
+                return;
+            }
+
+            orders.forEach(order => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                tr.style.transition = 'background 0.2s';
+
+                tr.innerHTML = `
+                    <td style="padding: 15px; font-family: monospace; color: var(--text-dim);">${order.Id}</td>
+                    <td style="padding: 15px; font-weight: 500;">${order.CustomerName}</td>
+                    <td style="padding: 15px; color: var(--text-dim);">${order.OrderDate}</td> 
+                `;
+
+                // Simple hover effect
+                tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(255,255,255,0.03)');
+                tr.addEventListener('mouseleave', () => tr.style.background = 'transparent');
+
+                list.appendChild(tr);
+            });
+
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('update-time').innerText = new Date().toLocaleTimeString();
+        }
+
+        function generateMockOrders() {
+            const mockOrders = [];
+            const count = 5 + Math.floor(Math.random() * 5); // 5 to 10 items
+            const names = ["Alice Smith", "Bob Jones", "Charlie Brown", "David Kim", "Eve White", "Frank Miller", "Grace Lee"];
+
+            for (let i = 0; i < count; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - Math.floor(Math.random() * 10));
+
+                mockOrders.push({
+                    Id: `ORD-${1000 + i}-${Math.floor(Math.random() * 99)}`,
+                    CustomerName: names[Math.floor(Math.random() * names.length)],
+                    OrderDate: date.toISOString().split('T')[0]
+                });
+            }
+            return mockOrders;
+        }
+
+        async function fetchOrders() {
+            try {
+                // Ensure loading spinner shows on refresh
+                // document.getElementById('loading-spinner').style.display = 'block';
+
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    // throw new Error("Received non-JSON response");
+                }
+
+                const data = await response.json();
+                updateDashboard(data);
+
+                // Reset header if valid data comes in
+                const headerP = document.querySelector('header p');
+                if (headerP && headerP.innerText.includes('Simulation')) {
+                    headerP.innerText = 'Real-time Order Tracking';
+                    headerP.style.color = 'var(--text-dim)';
+                }
+
+            } catch (error) {
+                // console.warn('Simulation Mode (Orders):', error);
+
+                // Fallback to mock data
+                const mockData = generateMockOrders();
+                updateDashboard(mockData);
+
+                const headerP = document.querySelector('header p');
+                if (headerP && !headerP.innerText.includes('Simulation')) {
+                    headerP.innerText = 'Real-time Order Tracking (Simulation Mode)';
+                    headerP.style.color = 'var(--accent-purple)';
+                }
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('splash-modal').classList.add('hidden');
+        }
+
+        // --- System Stats Simulation ---
+        const CIRCUMFERENCE = 2 * Math.PI * 70;
+        let mockUptimeSeconds = 12345;
+
+        function setProgress(elementId, percent) {
+            const circle = document.getElementById(elementId);
+            if (!circle) return;
+            const offset = CIRCUMFERENCE - (percent / 100 * CIRCUMFERENCE);
+            circle.style.strokeDashoffset = offset;
+
+            if (percent > 85) circle.style.stroke = 'var(--error-color)';
+            else if (percent > 70) circle.style.stroke = 'var(--warning-color)';
+            else circle.style.stroke = 'var(--accent-blue)';
+        }
+
+        function generateMockStats() {
+            const logicalProcessors = navigator.hardwareConcurrency || 4;
+            const approxRam = navigator.deviceMemory || 8;
+            const approxRamMB = approxRam * 1024;
+
+            let osName = "Cloudflare Worker Node";
+            if (navigator.userAgent.includes("Win")) osName = "Windows Host";
+            else if (navigator.userAgent.includes("Mac")) osName = "MacOS Host";
+            else if (navigator.userAgent.includes("Linux")) osName = "Linux Host";
+
+            const cpu = (Math.random() * 30 + 10).toFixed(2);
+            const mem = Math.floor(Math.random() * 20 + 40);
+            const disk = 65;
+
+            mockUptimeSeconds += 2; // Increment by 2s per tick
+            const h = Math.floor(mockUptimeSeconds / 3600);
+            const m = Math.floor((mockUptimeSeconds % 3600) / 60);
+
+            return {
+                cpu: { value: cpu, percent: cpu },
+                memory: { value: mem, details: `${(mem * approxRamMB / 100).toFixed(0)}MB / ${approxRamMB}MB` },
+                disk: { value: disk, details: '320GB / 500GB' },
+                uptime: { value: `${h}h ${m}m` },
+                server: { os: osName, php: `Simulation (Cores: ${logicalProcessors})` }
+            };
+        }
+
+        function updateStatsUI() {
+            const data = generateMockStats();
+
+            const cpuEl = document.getElementById('cpu-val');
+            if (cpuEl) {
+                cpuEl.innerText = parseFloat(data.cpu.value).toFixed(2);
+                setProgress('cpu-circle', Math.min(data.cpu.percent, 100));
+
+                document.getElementById('mem-val').innerText = data.memory.value + '%';
+                setProgress('mem-circle', data.memory.value);
+                document.getElementById('mem-details').innerText = data.memory.details;
+
+                document.getElementById('disk-val').innerText = data.disk.value + '%';
+                setProgress('disk-circle', data.disk.value);
+                document.getElementById('disk-details').innerText = data.disk.details;
+
+                document.getElementById('uptime-val').innerText = data.uptime.value;
+                document.getElementById('os-val').innerText = data.server.os;
+                document.getElementById('php-val').innerText = data.server.php;
+            }
+        }
+
+        // Start Stats Loop (Fast update)
+        setInterval(updateStatsUI, 2000);
+        updateStatsUI(); // Initial
+
+        // Initial load
+        fetchOrders();
+        // Refresh every 10 seconds (Orders don't need 5s updates usually)
+        setInterval(fetchOrders, 10000);
+
+    </script>
+</body>
+
+</html>
